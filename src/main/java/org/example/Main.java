@@ -1,16 +1,14 @@
 package org.example;
 
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 public class Main {
 
     static DataRepository dataRepository = new DataRepository();
 
-    static final Object lock1 = new Object();
-    static final Object lock2 = new Object();
+    static final Object lock = new Object();
 
     public static void main(String[] args) {
 
@@ -18,26 +16,26 @@ public class Main {
         DataGenerator dataGenerator = new DataGenerator();
         DataService dataService = new DataService();
 
-        Future<?> generatorFuture = executor.submit(dataGenerator);
-        try {
-            generatorFuture.get();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        }
+        executor.submit(dataGenerator);
+        executor.submit(dataService);
 
-        Future<?> serviceFuture = executor.submit(dataService);
-        try {
-            serviceFuture.get();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        }
 
         executor.shutdown();
+        try {
+            boolean finished = executor.awaitTermination(5, TimeUnit.SECONDS);
+            if (!finished) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            String message = e.getMessage();
+            System.err.println(message);
+            executor.shutdownNow();
+            System.out.println("No avg calculated!");
+            Thread.currentThread().interrupt();
+            return;
+        }
 
         System.out.println(DataService.avg);
+
     }
 }
